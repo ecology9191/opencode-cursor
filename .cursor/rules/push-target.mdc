@@ -1,0 +1,10 @@
+---
+description: Push this workspace to the ecology9191 fork
+alwaysApply: true
+---
+
+# Push Target
+
+When publishing this workspace, push to `https://github.com/ecology9191/opencode-cursor.git`.
+
+Do not assume `origin` is the correct push target; in some clones it may point at the upstream `Nomadcxx/opencode-cursor` repository.
