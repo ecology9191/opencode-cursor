@@ -28,6 +28,7 @@ interface HandleToolLoopEventBaseOptions {
   onToolResult: (toolResult: any) => Promise<void> | void;
   onInterceptedToolCall: (toolCall: OpenAiToolCall) => Promise<void> | void;
   passThroughTracker?: PassThroughTracker;
+  subagentNames?: string[];
 }
 
 export interface HandleToolLoopEventLegacyOptions extends HandleToolLoopEventBaseOptions {}
@@ -119,6 +120,7 @@ export async function handleToolLoopEventLegacy(
     onToolResult,
     onInterceptedToolCall,
     passThroughTracker,
+    subagentNames = [],
   } = options;
 
   const extraction =
@@ -161,7 +163,7 @@ export async function handleToolLoopEventLegacy(
   // Handle intercept: known OpenCode tool
   const interceptedToolCall = extraction.toolCall;
   if (interceptedToolCall) {
-    const compat = applyToolSchemaCompat(interceptedToolCall, toolSchemaMap);
+    const compat = applyToolSchemaCompat(interceptedToolCall, toolSchemaMap, { subagentNames });
     let normalizedToolCall = compat.toolCall;
     log.debug("Applied tool schema compatibility (legacy)", {
       tool: normalizedToolCall.function.name,
@@ -269,6 +271,7 @@ export async function handleToolLoopEventV1(
     onToolResult,
     onInterceptedToolCall,
     passThroughTracker,
+    subagentNames = [],
   } = options;
 
   let extraction: ToolCallExtractionResult;
@@ -316,7 +319,7 @@ export async function handleToolLoopEventV1(
 
   // Handle intercept: known OpenCode tool
   const interceptedToolCall = extraction.toolCall;
-  const compat = applyToolSchemaCompat(interceptedToolCall, toolSchemaMap);
+  const compat = applyToolSchemaCompat(interceptedToolCall, toolSchemaMap, { subagentNames });
   let normalizedToolCall = compat.toolCall;
   const editDiag =
     normalizedToolCall.function.name.toLowerCase() === "edit"

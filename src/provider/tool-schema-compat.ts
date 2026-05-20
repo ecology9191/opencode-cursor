@@ -37,6 +37,18 @@ const ARG_KEY_ALIASES = new Map<string, string>([
   ["newstring", "new_string"],
 ]);
 
+const TASK_SUBAGENT_ARG_ALIASES = new Set([
+  "subagent",
+  "agent",
+  "agenttype",
+  "agentname",
+  "subagenttype",
+]);
+
+export interface ToolSchemaCompatOptions {
+  subagentNames?: string[];
+}
+
 export interface ToolSchemaValidationResult {
   hasSchema: boolean;
   ok: boolean;
@@ -77,11 +89,12 @@ export function buildToolSchemaMap(tools: Array<unknown>): Map<string, unknown> 
 export function applyToolSchemaCompat(
   toolCall: OpenAiToolCall,
   toolSchemaMap: Map<string, unknown>,
+  options: ToolSchemaCompatOptions = {},
 ): ToolSchemaCompatResult {
   const parsedArgs = parseArguments(toolCall.function.arguments);
   const originalArgKeys = Object.keys(parsedArgs);
   const { normalizedArgs, collisionKeys } = normalizeArgumentKeys(parsedArgs);
-  const toolSpecificArgs = normalizeToolSpecificArgs(toolCall.function.name, normalizedArgs);
+  const toolSpecificArgs = normalizeToolSpecificArgs(toolCall.function.name, normalizedArgs, options);
   const schema = toolSchemaMap.get(toolCall.function.name);
   const sanitization = sanitizeArgumentsForSchema(toolSpecificArgs, schema);
   const validation = validateToolArguments(
@@ -154,8 +167,16 @@ function resolveCanonicalArgKey(rawKey: string): string | null {
   return ARG_KEY_ALIASES.get(token) ?? null;
 }
 
-function normalizeToolSpecificArgs(toolName: string, args: JsonRecord): JsonRecord {
+function normalizeToolSpecificArgs(
+  toolName: string,
+  args: JsonRecord,
+  options: ToolSchemaCompatOptions,
+): JsonRecord {
   const normalizedToolName = toolName.toLowerCase();
+  if (normalizedToolName === "task") {
+    return normalizeTaskArgs(args, options.subagentNames ?? []);
+  }
+
   if (normalizedToolName === "bash") {
     const normalized: JsonRecord = { ...args };
     const normalizedCommand = normalizeBashCommand(normalized.command);
@@ -266,6 +287,82 @@ function normalizeToolSpecificArgs(toolName: string, args: JsonRecord): JsonReco
   }
 
   return repaired;
+}
+
+function normalizeTaskArgs(args: JsonRecord, subagentNames: string[]): JsonRecord {
+  const normalized: JsonRecord = { ...args };
+  let aliasSubagentType: string | null = null;
+
+  for (const [rawKey, rawValue] of Object.entries(args)) {
+    if (!isTaskSubagentAlias(rawKey)) {
+      continue;
+    }
+    const value = coerceNonBlankString(rawValue);
+    if (aliasSubagentType === null && value !== null) {
+      aliasSubagentType = value;
+    }
+    delete normalized[rawKey];
+  }
+
+  if (hasUsableSubagentType(normalized.subagent_type)) {
+    return normalized;
+  }
+
+  if (aliasSubagentType !== null) {
+    normalized.subagent_type = aliasSubagentType;
+    return normalized;
+  }
+
+  const configuredNames = normalizeSubagentNames(subagentNames);
+  const promptMention = typeof normalized.prompt === "string"
+    ? findMentionedSubagent(normalized.prompt, configuredNames)
+    : null;
+  const fallback = promptMention ?? configuredNames[0];
+  if (fallback) {
+    normalized.subagent_type = fallback;
+  }
+
+  return normalized;
+}
+
+function isTaskSubagentAlias(rawKey: string): boolean {
+  if (rawKey === "subagent_type") {
+    return false;
+  }
+  const token = rawKey.toLowerCase().replace(/[^a-z0-9]/g, "");
+  return TASK_SUBAGENT_ARG_ALIASES.has(token);
+}
+
+function hasUsableSubagentType(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function coerceNonBlankString(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeSubagentNames(subagentNames: string[]): string[] {
+  return subagentNames
+    .map((name) => name.trim())
+    .filter((name) => name.length > 0);
+}
+
+function findMentionedSubagent(prompt: string, subagentNames: string[]): string | null {
+  for (const name of subagentNames) {
+    const pattern = new RegExp(`(^|[^A-Za-z0-9_-])@${escapeRegExp(name)}(?=$|[^A-Za-z0-9_-])`, "i");
+    if (pattern.test(prompt)) {
+      return name;
+    }
+  }
+  return null;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function normalizeBashCommand(value: unknown): string | null {

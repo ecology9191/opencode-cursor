@@ -4,7 +4,96 @@ import {
   buildToolSchemaMap,
 } from "../../src/provider/tool-schema-compat";
 
+const taskSchemaMap = new Map([
+  [
+    "task",
+    {
+      type: "object",
+      properties: {
+        prompt: { type: "string" },
+        subagent_type: { type: "string" },
+      },
+      required: ["prompt", "subagent_type"],
+      additionalProperties: false,
+    },
+  ],
+]);
+
+function taskToolCall(args: Record<string, unknown>) {
+  return {
+    id: "task1",
+    type: "function" as const,
+    function: {
+      name: "task",
+      arguments: JSON.stringify(args),
+    },
+  };
+}
+
 describe("tool schema compatibility", () => {
+  it("defaults missing task subagent_type to the first configured subagent", () => {
+    const result = applyToolSchemaCompat(
+      taskToolCall({ prompt: "analyze repo" }),
+      taskSchemaMap,
+      { subagentNames: ["general-purpose"] },
+    );
+
+    const args = JSON.parse(result.toolCall.function.arguments);
+    expect(args.prompt).toBe("analyze repo");
+    expect(args.subagent_type).toBe("general-purpose");
+    expect(result.validation.ok).toBe(true);
+  });
+
+  it("uses a known task prompt @mention for missing subagent_type", () => {
+    const result = applyToolSchemaCompat(
+      taskToolCall({ prompt: "@explorer inspect this" }),
+      taskSchemaMap,
+      { subagentNames: ["general-purpose", "explorer"] },
+    );
+
+    const args = JSON.parse(result.toolCall.function.arguments);
+    expect(args.subagent_type).toBe("explorer");
+    expect(result.validation.ok).toBe(true);
+  });
+
+  it("preserves explicit task subagent_type", () => {
+    const result = applyToolSchemaCompat(
+      taskToolCall({ prompt: "@explorer inspect this", subagent_type: "reviewer" }),
+      taskSchemaMap,
+      { subagentNames: ["general-purpose", "explorer"] },
+    );
+
+    const args = JSON.parse(result.toolCall.function.arguments);
+    expect(args.subagent_type).toBe("reviewer");
+    expect(result.validation.ok).toBe(true);
+  });
+
+  it("repairs unusable task subagent_type values when a default is configured", () => {
+    for (const subagentType of [null, ""]) {
+      const result = applyToolSchemaCompat(
+        taskToolCall({ prompt: "analyze repo", subagent_type: subagentType }),
+        taskSchemaMap,
+        { subagentNames: ["general-purpose"] },
+      );
+
+      const args = JSON.parse(result.toolCall.function.arguments);
+      expect(args.subagent_type).toBe("general-purpose");
+      expect(result.validation.ok).toBe(true);
+    }
+  });
+
+  it("normalizes task agentName alias into subagent_type", () => {
+    const result = applyToolSchemaCompat(
+      taskToolCall({ agentName: "reviewer", prompt: "review" }),
+      taskSchemaMap,
+    );
+
+    const args = JSON.parse(result.toolCall.function.arguments);
+    expect(args.subagent_type).toBe("reviewer");
+    expect(args.agentName).toBeUndefined();
+    expect(result.validation.ok).toBe(true);
+  });
+
   it("normalizes common argument aliases to canonical keys", () => {
     const result = applyToolSchemaCompat(
       {

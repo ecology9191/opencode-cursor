@@ -570,6 +570,7 @@ async function findFirstAllowedToolCallInOutput(
     toolLoopGuard: ToolLoopGuard;
     boundaryContext: ReturnType<typeof createBoundaryRuntimeContext>;
     responseMeta: { id: string; created: number; model: string };
+    subagentNames?: string[];
   },
 ): Promise<{ toolCall: OpenAiToolCall | null; terminationMessage: string | null }> {
   if (options.allowedToolNames.size === 0 || !output) {
@@ -595,6 +596,7 @@ async function findFirstAllowedToolCallInOutput(
       allowedToolNames: options.allowedToolNames,
       toolSchemaMap: options.toolSchemaMap,
       toolLoopGuard: options.toolLoopGuard,
+      subagentNames: options.subagentNames ?? [],
       toolMapper,
       toolSessionId,
       shouldEmitToolUpdates: false,
@@ -806,6 +808,7 @@ async function ensureCursorProxyServer(workspaceDirectory: string, toolRouter?: 
           toolLoopGuard,
           boundaryContext,
           responseMeta: meta,
+          subagentNames,
         });
         if (intercepted.terminationMessage) {
           const payload = createChatCompletionResponse(model, intercepted.terminationMessage);
@@ -947,6 +950,7 @@ async function ensureCursorProxyServer(workspaceDirectory: string, toolRouter?: 
                     allowedToolNames,
                     toolSchemaMap,
                     toolLoopGuard,
+                    subagentNames,
                     toolMapper,
                     toolSessionId,
                     shouldEmitToolUpdates: SHOULD_EMIT_TOOL_UPDATES,
@@ -1015,6 +1019,7 @@ async function ensureCursorProxyServer(workspaceDirectory: string, toolRouter?: 
                   allowedToolNames,
                   toolSchemaMap,
                   toolLoopGuard,
+                  subagentNames,
                   toolMapper,
                   toolSessionId,
                   shouldEmitToolUpdates: SHOULD_EMIT_TOOL_UPDATES,
@@ -1283,6 +1288,7 @@ async function ensureCursorProxyServer(workspaceDirectory: string, toolRouter?: 
             toolLoopGuard,
             boundaryContext,
             responseMeta: meta,
+            subagentNames,
           });
           if (intercepted.terminationMessage) {
             const terminationResponse = createChatCompletionResponse(model, intercepted.terminationMessage);
@@ -1444,6 +1450,7 @@ async function ensureCursorProxyServer(workspaceDirectory: string, toolRouter?: 
                 allowedToolNames,
                 toolSchemaMap,
                 toolLoopGuard,
+                subagentNames,
                 toolMapper,
                 toolSessionId,
                 shouldEmitToolUpdates: SHOULD_EMIT_TOOL_UPDATES,
