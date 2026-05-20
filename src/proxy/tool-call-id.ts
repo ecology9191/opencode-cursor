@@ -16,10 +16,13 @@ function encodeToolCallId(value: string): string {
 
 export function normalizeToolCallId(value: unknown, fallback = "call_unknown"): string {
   const raw = typeof value === "string" ? value : "";
-  const trimmed = raw.trim();
-  if (trimmed && SAFE_TOOL_CALL_ID.test(trimmed)) {
-    return trimmed;
+  if (!raw) {
+    return fallback;
   }
 
-  return trimmed ? encodeToolCallId(trimmed) : fallback;
+  if (SAFE_TOOL_CALL_ID.test(raw) && !raw.startsWith(ENCODED_TOOL_CALL_ID_PREFIX)) {
+    return raw;
+  }
+
+  return encodeToolCallId(raw);
 }

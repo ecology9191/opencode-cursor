@@ -83,6 +83,15 @@ describe("proxy/tool-loop", () => {
     expect(normalizeToolCallId("call_1\nfc_2")).toBe("encoded_call_5f_1_0a_fc_5f_2");
   });
 
+  it("preserves leading and trailing unsafe call ID characters", () => {
+    expect(normalizeToolCallId(" call_1")).toBe("encoded__20_call_5f_1");
+    expect(normalizeToolCallId("call_1\n")).toBe("encoded_call_5f_1_0a_");
+  });
+
+  it("reserves the encoded prefix for normalized call IDs", () => {
+    expect(normalizeToolCallId("encoded_call_3a_1")).toBe("encoded_encoded_5f_call_5f_3a_5f_1");
+  });
+
   it("normalizes *ToolCall names from cursor events", () => {
     const event: any = {
       type: "tool_call",
