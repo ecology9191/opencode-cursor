@@ -352,6 +352,35 @@ describe("proxy/tool-loop", () => {
     expect(response.choices[0].message.tool_calls[0].function.name).toBe("oc_read");
   });
 
+  it("builds valid non-stream response with multiple tool calls", () => {
+    const response = createToolCallCompletionResponse(
+      { id: "resp-multi", created: 123, model: "cursor-acp/auto" },
+      [
+        {
+          id: "call_1",
+          type: "function",
+          function: {
+            name: "task",
+            arguments: "{\"prompt\":\"scan routes\"}",
+          },
+        },
+        {
+          id: "call_2",
+          type: "function",
+          function: {
+            name: "task",
+            arguments: "{\"prompt\":\"scan clients\"}",
+          },
+        },
+      ],
+    );
+
+    expect(response.choices[0].finish_reason).toBe("tool_calls");
+    expect(response.choices[0].message.tool_calls).toHaveLength(2);
+    expect(response.choices[0].message.tool_calls[0].id).toBe("call_1");
+    expect(response.choices[0].message.tool_calls[1].id).toBe("call_2");
+  });
+
   it("builds valid stream chunks with tool_calls finish reason", () => {
     const chunks = createToolCallStreamChunks(
       { id: "resp-2", created: 456, model: "cursor-acp/auto" },
@@ -368,6 +397,37 @@ describe("proxy/tool-loop", () => {
     expect(chunks).toHaveLength(2);
     expect(chunks[0].choices[0].delta.tool_calls[0].function.name).toBe("oc_write");
     expect(chunks[0].choices[0].finish_reason).toBeNull();
+    expect(chunks[1].choices[0].finish_reason).toBe("tool_calls");
+  });
+
+  it("builds valid stream chunks with multiple tool calls", () => {
+    const chunks = createToolCallStreamChunks(
+      { id: "resp-stream-multi", created: 456, model: "cursor-acp/auto" },
+      [
+        {
+          id: "call_1",
+          type: "function",
+          function: {
+            name: "task",
+            arguments: "{\"prompt\":\"scan routes\"}",
+          },
+        },
+        {
+          id: "call_2",
+          type: "function",
+          function: {
+            name: "task",
+            arguments: "{\"prompt\":\"scan clients\"}",
+          },
+        },
+      ],
+    );
+
+    const toolCalls = chunks[0].choices[0].delta.tool_calls;
+    expect(toolCalls).toHaveLength(2);
+    expect(toolCalls[0].index).toBe(0);
+    expect(toolCalls[1].index).toBe(1);
+    expect(toolCalls[0].function.name).toBe("task");
     expect(chunks[1].choices[0].finish_reason).toBe("tool_calls");
   });
 });

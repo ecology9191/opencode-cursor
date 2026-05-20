@@ -166,7 +166,11 @@ export function extractOpenAiToolCall(
   };
 }
 
-export function createToolCallCompletionResponse(meta: ToolLoopMeta, toolCall: OpenAiToolCall) {
+export function createToolCallCompletionResponse(
+  meta: ToolLoopMeta,
+  toolCallOrCalls: OpenAiToolCall | OpenAiToolCall[],
+) {
+  const toolCalls = normalizeToolCalls(toolCallOrCalls);
   return {
     id: meta.id,
     object: "chat.completion",
@@ -178,7 +182,7 @@ export function createToolCallCompletionResponse(meta: ToolLoopMeta, toolCall: O
         message: {
           role: "assistant",
           content: null,
-          tool_calls: [toolCall],
+          tool_calls: toolCalls,
         },
         finish_reason: "tool_calls",
       },
@@ -186,7 +190,11 @@ export function createToolCallCompletionResponse(meta: ToolLoopMeta, toolCall: O
   };
 }
 
-export function createToolCallStreamChunks(meta: ToolLoopMeta, toolCall: OpenAiToolCall): Array<any> {
+export function createToolCallStreamChunks(
+  meta: ToolLoopMeta,
+  toolCallOrCalls: OpenAiToolCall | OpenAiToolCall[],
+): Array<any> {
+  const toolCalls = normalizeToolCalls(toolCallOrCalls);
   const toolDelta = {
     id: meta.id,
     object: "chat.completion.chunk",
@@ -197,12 +205,10 @@ export function createToolCallStreamChunks(meta: ToolLoopMeta, toolCall: OpenAiT
         index: 0,
         delta: {
           role: "assistant",
-          tool_calls: [
-            {
-              index: 0,
-              ...toolCall,
-            },
-          ],
+          tool_calls: toolCalls.map((toolCall, index) => ({
+            index,
+            ...toolCall,
+          })),
         },
         finish_reason: null,
       },
@@ -224,6 +230,10 @@ export function createToolCallStreamChunks(meta: ToolLoopMeta, toolCall: OpenAiT
   };
 
   return [toolDelta, finishChunk];
+}
+
+function normalizeToolCalls(toolCallOrCalls: OpenAiToolCall | OpenAiToolCall[]): OpenAiToolCall[] {
+  return Array.isArray(toolCallOrCalls) ? toolCallOrCalls : [toolCallOrCalls];
 }
 
 function extractToolNameAndArgs(event: StreamJsonToolCallEvent): {

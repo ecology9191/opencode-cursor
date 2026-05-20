@@ -59,3 +59,55 @@ describe("Plugin Directory Initialization", () => {
     expect(existsSync(testPluginDir)).toBe(true);
   });
 });
+
+describe("Plugin tool-call collection", () => {
+  it("collects multiple allowed task calls from one cursor-agent output", async () => {
+    const { findAllowedToolCallsInOutput } = await import("../../src/plugin");
+    const { createProviderBoundary } = await import("../../src/provider/boundary");
+    const { createToolLoopGuard } = await import("../../src/provider/tool-loop-guard");
+
+    const output = [
+      ["call_routes", "Inbound API inventory"],
+      ["call_clients", "Client API inventory"],
+      ["call_contracts", "Contracts/docs/tests inventory"],
+      ["call_crosscheck", "API inventory cross-check"],
+    ]
+      .map(([callId, prompt]) =>
+        JSON.stringify({
+          type: "tool_call",
+          call_id: callId,
+          tool_call: {
+            taskToolCall: {
+              args: { prompt, subagent_type: "build" },
+            },
+          },
+        }),
+      )
+      .join("\n");
+
+    const boundaryContext: Parameters<typeof findAllowedToolCallsInOutput>[1]["boundaryContext"] = {
+      getBoundary: () => createProviderBoundary("v1", "cursor-acp"),
+      activateLegacyFallback: () => {},
+    };
+
+    const result = await findAllowedToolCallsInOutput(output, {
+      toolLoopMode: "opencode",
+      allowedToolNames: new Set(["task"]),
+      toolSchemaMap: new Map(),
+      toolLoopGuard: createToolLoopGuard([], 3),
+      boundaryContext,
+      responseMeta: { id: "resp-multi-task", created: 123, model: "cursor-acp/auto" },
+      subagentNames: ["build"],
+    });
+
+    expect(result.terminationMessage).toBeNull();
+    expect(result.toolCalls).toHaveLength(4);
+    expect(result.toolCalls.map((toolCall) => toolCall.id)).toEqual([
+      "call_routes",
+      "call_clients",
+      "call_contracts",
+      "call_crosscheck",
+    ]);
+    expect(JSON.parse(result.toolCalls[0].function.arguments).prompt).toBe("Inbound API inventory");
+  });
+});

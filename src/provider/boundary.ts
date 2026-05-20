@@ -48,8 +48,8 @@ export interface ProviderBoundary {
     allowedToolNames: Set<string>,
     toolLoopMode: ToolLoopMode,
   ): ToolCallExtractionResult;
-  createNonStreamToolCallResponse(meta: ToolLoopMeta, toolCall: OpenAiToolCall): any;
-  createStreamToolCallChunks(meta: ToolLoopMeta, toolCall: OpenAiToolCall): Array<any>;
+  createNonStreamToolCallResponse(meta: ToolLoopMeta, toolCall: OpenAiToolCall | OpenAiToolCall[]): any;
+  createStreamToolCallChunks(meta: ToolLoopMeta, toolCall: OpenAiToolCall | OpenAiToolCall[]): Array<any>;
 }
 
 export function parseProviderBoundaryMode(
