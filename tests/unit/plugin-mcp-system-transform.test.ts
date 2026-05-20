@@ -12,7 +12,7 @@ describe("Plugin MCP system transform", () => {
     expect(systemMessage).toContain("skill_search -> search");
   });
 
-  it("includes mcptool Shell instructions when summaries provided", () => {
+  it("does not advertise MCP tools through mcptool Shell commands", () => {
     const systemMessage = buildAvailableToolsSystemMessage(
       ["read", "write"],
       [],
@@ -37,15 +37,13 @@ describe("Plugin MCP system transform", () => {
       ],
     );
 
-    expect(systemMessage).toContain("mcptool call");
-    expect(systemMessage).toContain("hybrid-memory");
-    expect(systemMessage).toContain("memory_search");
-    expect(systemMessage).toContain("memory_stats");
-    expect(systemMessage).toContain("query, limit");
-    expect(systemMessage).toContain("Shell");
+    expect(systemMessage).not.toContain("mcptool");
+    expect(systemMessage).not.toContain("Shell");
+    expect(systemMessage).not.toContain("hybrid-memory");
+    expect(systemMessage).not.toContain("memory_search");
   });
 
-  it("includes multiple servers in Shell instructions", () => {
+  it("returns null when only MCP summaries are available", () => {
     const systemMessage = buildAvailableToolsSystemMessage(
       [],
       [],
@@ -65,9 +63,7 @@ describe("Plugin MCP system transform", () => {
       ],
     );
 
-    expect(systemMessage).toContain("hybrid-memory");
-    expect(systemMessage).toContain("test-filesystem");
-    expect(systemMessage).toContain("list_directory");
+    expect(systemMessage).toBeNull();
   });
 
   it("returns null when no tools at all", () => {

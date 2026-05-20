@@ -97,8 +97,8 @@ interface McpToolSummary {
 export function buildAvailableToolsSystemMessage(
   lastToolNames: string[],
   lastToolMap: Array<{ id: string; name: string }>,
-  mcpToolDefs: any[],
-  mcpToolSummaries?: McpToolSummary[],
+  _mcpToolDefs: any[],
+  _mcpToolSummaries?: McpToolSummary[],
   subagentNames: string[] = [],
 ): string | null {
   const parts: string[] = [];
@@ -109,36 +109,9 @@ export function buildAvailableToolsSystemMessage(
     parts.push(`Available OpenCode tools (use via tool calls): ${names}. Original skill ids mapped as: ${mapping}. Aliases include oc_skill_* and oc_superskill_* when applicable.`);
   }
 
-  if (mcpToolSummaries && mcpToolSummaries.length > 0) {
-    const servers = new Map<string, McpToolSummary[]>();
-    for (const s of mcpToolSummaries) {
-      const list = servers.get(s.serverName) ?? [];
-      list.push(s);
-      servers.set(s.serverName, list);
-    }
-
-    const lines: string[] = [
-      "MCP TOOLS — Use via Shell with the `mcptool` CLI.",
-      "Syntax: mcptool call <server> <tool> [json-args]",
-      "",
-    ];
-
-    for (const [server, tools] of servers) {
-      lines.push(`Server: ${server}`);
-      for (const t of tools) {
-        const paramHint = t.params?.length ? ` (params: ${t.params.join(", ")})` : "";
-        lines.push(`  - ${t.toolName}${paramHint}${t.description ? " — " + t.description : ""}`);
-      }
-      if (tools.length > 0) {
-        const ex = tools[0];
-        const exArgs = ex.params?.length ? ` '{"${ex.params[0]}":"..."}'` : "";
-        lines.push(`  Example: mcptool call ${server} ${ex.toolName}${exArgs}`);
-      }
-      lines.push("");
-    }
-
-    parts.push(lines.join("\n"));
-  }
+  // MCP tools are already registered as normal OpenCode tool hooks and OpenAI
+  // tool definitions. Advertising `mcptool` through Shell bypasses OpenCode's
+  // per-tool permission rules when bash is broadly allowed.
 
   if (subagentNames.length > 0) {
     parts.push(
