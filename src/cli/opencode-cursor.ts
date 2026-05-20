@@ -137,7 +137,9 @@ function isNpmDirectInstalled(config: unknown): boolean {
   if (!config || typeof config !== "object") return false;
   const plugins = (config as Record<string, unknown>).plugin;
   if (!Array.isArray(plugins)) return false;
-  return plugins.some((p) => typeof p === "string" && p.startsWith(NPM_PACKAGE_PREFIX));
+  return plugins.some((p) =>
+    typeof p === "string" && NPM_PACKAGE_PREFIXES.some((prefix) => p.startsWith(prefix))
+  );
 }
 
 function checkPluginFile(pluginPath: string, config: unknown): CheckResult {
@@ -279,7 +281,7 @@ type SyncModelsJsonResult = SyncModelsResult & {
 };
 
 const PROVIDER_ID = "cursor-acp";
-const NPM_PACKAGE_PREFIX = "@rama_nigg/open-cursor";
+const NPM_PACKAGE_PREFIXES = ["@ecology91/open-cursor", "@rama_nigg/open-cursor"];
 const DEFAULT_BASE_URL = "http://127.0.0.1:32124/v1";
 
 function printHelp() {
@@ -722,7 +724,7 @@ function printSyncResult(result: SyncModelsResult, options: Options) {
   console.log(`  Skipped: ${result.summary.skipped}`);
 }
 
-const NPM_PACKAGE = "@rama_nigg/open-cursor";
+const NPM_PACKAGES = ["@ecology91/open-cursor", "@rama_nigg/open-cursor"];
 
 function commandUninstall(options: Options) {
   const { configPath, pluginPath } = resolvePaths(options);
@@ -731,10 +733,10 @@ function commandUninstall(options: Options) {
   if (existsSync(configPath)) {
     const config = readConfig(configPath);
     if (Array.isArray(config.plugin)) {
-      // Remove both cursor-acp (symlink) and @rama_nigg/open-cursor (npm-direct) entries
+      // Remove both cursor-acp (symlink) and npm-direct entries.
       config.plugin = config.plugin.filter((name: string) => {
         if (name === PROVIDER_ID) return false;
-        if (typeof name === "string" && name.startsWith(NPM_PACKAGE)) return false;
+        if (typeof name === "string" && NPM_PACKAGES.some((pkg) => name.startsWith(pkg))) return false;
         return true;
       });
     }

@@ -3,12 +3,11 @@ import { homedir } from "os";
 import { join, resolve } from "path";
 
 const CURSOR_PROVIDER_ID = "cursor-acp";
-const NPM_PACKAGE_NAME = "@rama_nigg/open-cursor";
+const NPM_PACKAGE_NAMES = ["@ecology91/open-cursor", "@rama_nigg/open-cursor"];
 
 function matchesPlugin(entry: string): boolean {
   if (entry === CURSOR_PROVIDER_ID) return true;
-  if (entry === NPM_PACKAGE_NAME) return true;
-  if (entry.startsWith(`${NPM_PACKAGE_NAME}@`)) return true;
+  if (NPM_PACKAGE_NAMES.some((name) => entry === name || entry.startsWith(`${name}@`))) return true;
   return false;
 }
 

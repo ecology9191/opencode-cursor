@@ -15,10 +15,14 @@ describe("plugin toggle", () => {
   });
 
   it("enables plugin when plugin array includes npm package name", () => {
-    expect(isCursorPluginEnabledInConfig({ plugin: ["@rama_nigg/open-cursor"] })).toBe(true);
+    expect(isCursorPluginEnabledInConfig({ plugin: ["@ecology91/open-cursor"] })).toBe(true);
   });
 
   it("enables plugin when plugin array includes npm package name with version", () => {
+    expect(isCursorPluginEnabledInConfig({ plugin: ["@ecology91/open-cursor@2.4.6"] })).toBe(true);
+  });
+
+  it("keeps legacy npm package entries enabled during migration", () => {
     expect(isCursorPluginEnabledInConfig({ plugin: ["@rama_nigg/open-cursor@2.3.2"] })).toBe(true);
   });
 

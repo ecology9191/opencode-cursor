@@ -1,6 +1,6 @@
 {
-  "name": "@rama_nigg/open-cursor",
-  "version": "2.4.5",
+  "name": "@ecology91/open-cursor",
+  "version": "2.4.6",
   "description": "No prompt limits. No broken streams. Full thinking + tool support. Your Cursor subscription, properly integrated.",
   "type": "module",
   "main": "dist/plugin-entry.js",
@@ -57,11 +57,11 @@
   "license": "ISC",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Nomadcxx/opencode-cursor.git"
+    "url": "git+https://github.com/ecology9191/opencode-cursor.git"
   },
-  "homepage": "https://github.com/Nomadcxx/opencode-cursor#readme",
+  "homepage": "https://github.com/ecology9191/opencode-cursor#readme",
   "bugs": {
-    "url": "https://github.com/Nomadcxx/opencode-cursor/issues"
+    "url": "https://github.com/ecology9191/opencode-cursor/issues"
   },
   "keywords": [
     "opencode",

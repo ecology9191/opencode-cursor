@@ -14,16 +14,13 @@ No prompt limits. No broken streams. Full thinking + tool support in OpenCode. Y
 
 **Linux & macOS:**
 ```bash
-tmpdir="$(mktemp -d)" && git clone --depth 1 https://github.com/ecology9191/opencode-cursor.git "$tmpdir" && cd "$tmpdir" && bun install && bun run build && npm install -g . && open-cursor install
+npm install -g @ecology91/open-cursor
+open-cursor install
 ```
 
 **Windows:**
 ```powershell
-git clone https://github.com/ecology9191/opencode-cursor.git
-cd opencode-cursor
-bun install
-bun run build
-npm install -g .
+npm install -g @ecology91/open-cursor
 open-cursor install
 ```
 
@@ -32,7 +29,7 @@ open-cursor install
 
 Add to `~/.config/opencode/opencode.json` (or `%USERPROFILE%\.config\opencode\opencode.json` on Windows):
 
-Use this after installing the fork with `open-cursor install` or after manually linking `dist/plugin-entry.js` as `cursor-acp.js`.
+Use this after installing `@ecology91/open-cursor` with `open-cursor install` or after manually linking `dist/plugin-entry.js` as `cursor-acp.js`.
 
 ```json
 {
@@ -92,27 +89,14 @@ Use this after installing the fork with `open-cursor install` or after manually 
 </details>
 
 <details>
-<summary><b>Option C</b> — Source checkout + CLI</summary>
+<summary><b>Option C</b> — npm global + CLI</summary>
 
 ```bash
-git clone https://github.com/ecology9191/opencode-cursor.git
-cd opencode-cursor
-bun install
-bun run build
-npm install -g .
+npm install -g @ecology91/open-cursor
 open-cursor install
 ```
 
-Upgrade:
-
-```bash
-cd opencode-cursor
-git pull --ff-only
-bun install
-bun run build
-npm install -g .
-open-cursor sync-models
-```
+Upgrade: `npm update -g @ecology91/open-cursor`
 </details>
 
 <details>
@@ -129,7 +113,7 @@ go build -o ./installer ./cmd/installer && ./installer
 <summary><b>Option E</b> — LLM paste</summary>
 
 ```
-Install open-cursor from https://github.com/ecology9191/opencode-cursor for OpenCode: clone the fork, run `bun install && bun run build && npm install -g . && open-cursor install`, then edit ~/.config/opencode/opencode.json if needed so "plugin" includes "cursor-acp" and the "cursor-acp" provider uses npm "@ai-sdk/openai-compatible" with baseURL http://127.0.0.1:32124/v1. Populate models by running `open-cursor sync-models --variants --compact` after install (or copy the model list from the README). Auth: `cursor-agent login`. Verify: `opencode models | grep cursor-acp`.
+Install open-cursor from @ecology91/open-cursor for OpenCode: run `npm install -g @ecology91/open-cursor && open-cursor install`, then edit ~/.config/opencode/opencode.json if needed so "plugin" includes "cursor-acp" and the "cursor-acp" provider uses npm "@ai-sdk/openai-compatible" with baseURL http://127.0.0.1:32124/v1. Populate models by running `open-cursor sync-models --variants --compact` after install (or copy the model list from the README). Auth: `cursor-agent login`. Verify: `opencode models | grep cursor-acp`.
 ```
 </details>
 
