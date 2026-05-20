@@ -1,3 +1,4 @@
+import { spawn } from "child_process";
 import type { ToolRegistry } from "./core/registry.js";
 import { createLogger } from "../utils/logger.js";
 
@@ -30,8 +31,6 @@ export function registerDefaultTools(registry: ToolRegistry): void {
     },
     source: "local" as const
   }, async (args) => {
-    const { spawn } = await import("child_process");
-
     const command = resolveBashCommand(args);
     if (!command) {
       throw new Error("bash: missing required argument 'command'");
@@ -368,10 +367,6 @@ export function registerDefaultTools(registry: ToolRegistry): void {
     },
     source: "local" as const
   }, async (args) => {
-    const { execFile } = await import("child_process");
-    const { promisify } = await import("util");
-    const execFileAsync = promisify(execFile);
-
     const pattern = resolveGlobPattern(args);
     if (!pattern) {
       throw new Error("glob: missing required argument 'pattern'");
@@ -400,17 +395,12 @@ export function registerDefaultTools(registry: ToolRegistry): void {
     }
 
     try {
-      const { stdout } = await execFileAsync("find", findArgs, { timeout: 30000 });
-      // Limit output to 50 lines (replaces piped `| head -50`)
-      const lines = (stdout || "").split("\n").filter(Boolean);
-      return lines.slice(0, 50).join("\n") || "No files found";
+      return await runFindGlob(findArgs);
     } catch (error: any) {
-      const stdout = typeof error?.stdout === "string" ? error.stdout : "";
       const stderr = typeof error?.stderr === "string" ? error.stderr : "";
       // Permission-denied and "no results" scenarios from find should not be fatal.
       if (error?.code === 1 || stderr.includes("Permission denied")) {
-        const lines = stdout.split("\n").filter(Boolean);
-        return lines.slice(0, 50).join("\n") || "No files found";
+        return "No files found";
       }
       throw error;
     }
@@ -726,6 +716,92 @@ function coerceToString(value: unknown): string | null {
  */
 export function getDefaultToolNames(): string[] {
   return ["bash", "read", "write", "edit", "grep", "ls", "glob", "mkdir", "rm", "stat"];
+}
+
+async function runFindGlob(findArgs: string[]): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    const proc = spawn("find", findArgs, {
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    const results: string[] = [];
+    let stdoutRemainder = "";
+    let stderr = "";
+    let stoppedAfterLimit = false;
+    let timedOut = false;
+    let settled = false;
+
+    const timer = setTimeout(() => {
+      timedOut = true;
+      proc.kill("SIGTERM");
+    }, 30000);
+
+    const settle = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      callback();
+    };
+
+    const resolveResults = () => {
+      resolve(results.join("\n") || "No files found");
+    };
+
+    const stopAfterLimit = () => {
+      if (!stoppedAfterLimit) {
+        stoppedAfterLimit = true;
+        proc.kill("SIGTERM");
+      }
+    };
+
+    proc.stdout.setEncoding("utf8");
+    proc.stdout.on("data", (chunk: string) => {
+      if (results.length >= 50) return;
+
+      const lines = `${stdoutRemainder}${chunk}`.split("\n");
+      stdoutRemainder = lines.pop() ?? "";
+
+      for (const line of lines) {
+        if (!line) continue;
+        results.push(line);
+        if (results.length >= 50) {
+          stdoutRemainder = "";
+          stopAfterLimit();
+          break;
+        }
+      }
+    });
+
+    proc.stderr.setEncoding("utf8");
+    proc.stderr.on("data", (chunk: string) => {
+      const remaining = 4096 - stderr.length;
+      if (remaining > 0) {
+        stderr += chunk.slice(0, remaining);
+      }
+    });
+
+    proc.on("error", (error) => {
+      settle(() => reject(error));
+    });
+
+    proc.on("close", (code) => {
+      if (!stoppedAfterLimit && stdoutRemainder && results.length < 50) {
+        results.push(stdoutRemainder);
+      }
+
+      if (timedOut) {
+        settle(() => reject(new Error("find timed out after 30000ms")));
+        return;
+      }
+
+      if (stoppedAfterLimit || code === 0 || code === 1 || stderr.includes("Permission denied")) {
+        settle(resolveResults);
+        return;
+      }
+
+      const detail = stderr.trim() || `find exited with code ${code}`;
+      settle(() => reject(new Error(detail)));
+    });
+  });
 }
 
 const FALLBACK_SKIP_DIRS = new Set(["node_modules", ".git", "dist", "build"]);

@@ -488,6 +488,37 @@ describe("Default Tools", () => {
     expect(result.output).toContain(".ts");
   });
 
+  it("should limit glob output before stdout exceeds maxBuffer", async () => {
+    const registry = new ToolRegistry();
+    registerDefaultTools(registry);
+    const executor = new LocalExecutor(registry);
+    const fs = await import("fs");
+    const { tmpdir } = await import("os");
+    const { join } = await import("path");
+    const base = fs.mkdtempSync(join(tmpdir(), "test-glob-overflow-"));
+    const suffix = "x".repeat(180);
+
+    try {
+      for (let i = 0; i < 6000; i++) {
+        const dir = join(base, `pkg-${String(i).padStart(5, "0")}-${suffix}`);
+        fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(join(dir, "package.json"), "{}\n", "utf-8");
+      }
+
+      const result = await executeWithChain([executor], "glob", {
+        pattern: "package.json",
+        path: base,
+      });
+
+      expect(result.status).toBe("success");
+      const lines = result.output?.split("\n").filter(Boolean) ?? [];
+      expect(lines).toHaveLength(50);
+      expect(lines.every((line) => line.endsWith("package.json"))).toBe(true);
+    } finally {
+      fs.rmSync(base, { recursive: true, force: true });
+    }
+  });
+
   it("should execute glob tool for nested slash patterns", async () => {
     const registry = new ToolRegistry();
     registerDefaultTools(registry);
