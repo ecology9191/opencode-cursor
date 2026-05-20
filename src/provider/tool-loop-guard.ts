@@ -109,7 +109,7 @@ export function createToolLoopGuard(
           ?? latest
           ?? "unknown",
       );
-      const argShape = deriveArgumentShape(toolCall.function.arguments);
+      const argValueSignature = deriveArgumentValueSignature(toolCall.function.arguments);
       if (errorClass === "success") {
         // For success paths, only track identical value payloads to avoid blocking
         // legitimate repeated tool usage with different arguments.
@@ -155,7 +155,7 @@ export function createToolLoopGuard(
           tracked: true,
         };
       }
-      const strictFingerprint = `${toolCall.function.name}|${argShape}|${errorClass}`;
+      const strictFingerprint = `${toolCall.function.name}|values:${argValueSignature}|${errorClass}`;
       const coarseFingerprint = `${toolCall.function.name}|${errorClass}`;
 
       return evaluateWithFingerprints(
@@ -299,7 +299,7 @@ function indexToolLoopHistory(messages: Array<unknown>): {
       }
       continue;
     }
-    const strictFingerprint = `${call.name}|${call.argShape}|${errorClass}`;
+    const strictFingerprint = `${call.name}|values:${call.argValueSignature}|${errorClass}`;
     const coarseFingerprint = `${call.name}|${errorClass}`;
     incrementCount(initialCounts, strictFingerprint);
     incrementCount(initialCoarseCounts, coarseFingerprint);
@@ -365,15 +365,6 @@ function classifyToolResult(content: unknown): ToolLoopErrorClass {
   return "unknown";
 }
 
-function deriveArgumentShape(rawArguments: string): string {
-  try {
-    const parsed = JSON.parse(rawArguments);
-    return JSON.stringify(shapeOf(parsed));
-  } catch {
-    return "invalid_json";
-  }
-}
-
 function deriveArgumentValueSignature(rawArguments: string): string {
   try {
     const parsed = JSON.parse(rawArguments);
@@ -420,7 +411,6 @@ function extractAssistantToolCalls(messages: Array<unknown>): Array<{
   id: string;
   name: string;
   rawArguments: string;
-  argShape: string;
   argValueSignature: string;
   argKeys: string[];
 }> {
@@ -428,7 +418,6 @@ function extractAssistantToolCalls(messages: Array<unknown>): Array<{
     id: string;
     name: string;
     rawArguments: string;
-    argShape: string;
     argValueSignature: string;
     argKeys: string[];
   }> = [];
@@ -452,7 +441,6 @@ function extractAssistantToolCalls(messages: Array<unknown>): Array<{
         id,
         name,
         rawArguments,
-        argShape: deriveArgumentShape(rawArguments),
         argValueSignature: deriveArgumentValueSignature(rawArguments),
         argKeys: extractArgumentKeys(rawArguments),
       });
@@ -548,26 +536,6 @@ function evaluateWithFingerprints(
 
 function incrementCount(map: Map<string, number>, key: string): void {
   map.set(key, (map.get(key) ?? 0) + 1);
-}
-
-function shapeOf(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    if (value.length === 0) {
-      return ["empty"];
-    }
-    return [shapeOf(value[0])];
-  }
-  if (isRecord(value)) {
-    const shaped: Record<string, unknown> = {};
-    for (const key of Object.keys(value).sort()) {
-      shaped[key] = shapeOf(value[key]);
-    }
-    return shaped;
-  }
-  if (value === null) {
-    return "null";
-  }
-  return typeof value;
 }
 
 function canonicalizeValue(value: unknown): unknown {

@@ -601,6 +601,54 @@ describe("tool loop guard", () => {
     expect(readDecision.errorClass).toBe("not_found");
     expect(readDecision.triggered).toBe(false);
   });
+
+  it("does not collapse distinct shell commands with the same argument shape", () => {
+    const history: Array<unknown> = [];
+
+    for (let i = 0; i < 10; i += 1) {
+      history.push({
+        role: "assistant",
+        content: null,
+        tool_calls: [
+          {
+            id: `shell-${i}`,
+            type: "function",
+            function: {
+              name: "shell",
+              arguments: JSON.stringify({
+                command: `cat ~/.config/opencode/config-${i}.json`,
+                timeout: 30000,
+                description: `Read config ${i}`,
+              }),
+            },
+          },
+        ],
+      });
+      history.push({
+        role: "tool",
+        tool_call_id: `shell-${i}`,
+        content: `Config ${i} includes the word error but the command target differs.`,
+      });
+    }
+
+    const guard = createToolLoopGuard(history, 2);
+    const decision = guard.evaluate({
+      id: "shell-next",
+      type: "function",
+      function: {
+        name: "shell",
+        arguments: JSON.stringify({
+          command: "cat ~/.config/opencode/opencode.json",
+          timeout: 30000,
+          description: "Read main opencode config",
+        }),
+      },
+    });
+
+    expect(decision.errorClass).toBe("tool_error");
+    expect(decision.triggered).toBe(false);
+    expect(decision.repeatCount).toBe(1);
+  });
 });
 
   // Reproduction test for issue #33: cross-turn accumulation
