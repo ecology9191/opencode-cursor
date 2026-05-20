@@ -5,6 +5,7 @@ import {
   extractAllowedToolNames,
   extractOpenAiToolCall,
 } from "../../../src/proxy/tool-loop.js";
+import { normalizeToolCallId } from "../../../src/proxy/tool-call-id.js";
 
 // Helper function to create tool call events
 function createToolCallEvent(toolName: string, args: Record<string, unknown>, callId = "call_test_123") {
@@ -54,6 +55,32 @@ describe("proxy/tool-loop", () => {
     expect(result.toolCall?.id).toBe("call_1");
     expect(result.toolCall?.function.name).toBe("oc_read");
     expect(result.toolCall?.function.arguments).toBe("{\"path\":\"/tmp/hello.txt\"}");
+  });
+
+  it("normalizes multiline cursor call IDs before returning OpenAI tool calls", () => {
+    const event: any = {
+      type: "tool_call",
+      call_id: "call_xpYBWUQpJAiOHFnQm4Sk2xaV\nfc_07a6ade79ccd1859016a0d3ce994188191b462401ff0ed584a",
+      name: "oc_read",
+      tool_call: {
+        oc_read: {
+          args: { path: "/tmp/hello.txt" },
+        },
+      },
+    };
+
+    const result = extractOpenAiToolCall(event, new Set(["oc_read"]));
+
+    expect(result.action).toBe("intercept");
+    expect(result.toolCall?.id).toBe(
+      "encoded_call_5f_xpYBWUQpJAiOHFnQm4Sk2xaV_0a_fc_5f_07a6ade79ccd1859016a0d3ce994188191b462401ff0ed584a",
+    );
+  });
+
+  it("encodes unsafe call ID characters distinctly", () => {
+    expect(normalizeToolCallId("call_1:fc_2")).toBe("encoded_call_5f_1_3a_fc_5f_2");
+    expect(normalizeToolCallId("call_1/fc_2")).toBe("encoded_call_5f_1_2f_fc_5f_2");
+    expect(normalizeToolCallId("call_1\nfc_2")).toBe("encoded_call_5f_1_0a_fc_5f_2");
   });
 
   it("normalizes *ToolCall names from cursor events", () => {

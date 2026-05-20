@@ -2,6 +2,7 @@ import { appendFileSync, existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { createLogger } from "../utils/logger.js";
+import { normalizeToolCallId } from "./tool-call-id.js";
 
 const log = createLogger("proxy:prompt-builder");
 
@@ -114,7 +115,7 @@ export function buildPromptFromMessages(messages: Array<any>, tools: Array<any>,
 
     // tool result messages (from multi-turn tool execution loop)
     if (role === "tool") {
-      const callId = message.tool_call_id || "unknown";
+      const callId = normalizeToolCallId(message.tool_call_id, "unknown");
       const body =
         typeof message.content === "string"
           ? message.content
@@ -131,7 +132,7 @@ export function buildPromptFromMessages(messages: Array<any>, tools: Array<any>,
     ) {
       const tcTexts = message.tool_calls.map((tc: any) => {
         const fn = tc.function || {};
-        return `tool_call(id: ${tc.id || "?"}, name: ${fn.name || "?"}, args: ${fn.arguments || "{}"})`;
+        return `tool_call(id: ${normalizeToolCallId(tc.id, "?")}, name: ${fn.name || "?"}, args: ${fn.arguments || "{}"})`;
       });
       const text = typeof message.content === "string" ? message.content : "";
       lines.push(`ASSISTANT: ${text ? text + "\n" : ""}${tcTexts.join("\n")}`);

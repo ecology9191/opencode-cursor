@@ -1,5 +1,6 @@
 import type { StreamJsonToolCallEvent } from "../streaming/types.js";
 import { createLogger } from "../utils/logger.js";
+import { normalizeToolCallId } from "./tool-call-id.js";
 
 const log = createLogger("proxy:tool-loop");
 
@@ -139,7 +140,7 @@ export function extractOpenAiToolCall(
       });
     }
 
-    const callId = event.call_id || (event as any).tool_call_id || "call_unknown";
+    const callId = normalizeToolCallId(event.call_id || (event as any).tool_call_id);
     return {
       action: "intercept",
       toolCall: {

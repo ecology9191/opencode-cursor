@@ -78,6 +78,36 @@ describe("buildPromptFromMessages", () => {
     expect(result).toContain('tool_call(id: call_1, name: read, args: {"path":"foo.txt"})');
   });
 
+  it("normalizes multiline tool call IDs in flattened prompt history", () => {
+    const messages = [
+      {
+        role: "assistant",
+        content: null,
+        tool_calls: [
+          {
+            id: "call_xpYBWUQpJAiOHFnQm4Sk2xaV\nfc_07a6ade79ccd1859016a0d3ce994188191b462401ff0ed584a",
+            function: { name: "read", arguments: '{"path":"foo.txt"}' },
+          },
+        ],
+      },
+      {
+        role: "tool",
+        tool_call_id: "call_xpYBWUQpJAiOHFnQm4Sk2xaV\nfc_07a6ade79ccd1859016a0d3ce994188191b462401ff0ed584a",
+        content: "file contents here",
+      },
+    ];
+
+    const result = buildPromptFromMessages(messages, []);
+
+    expect(result).toContain(
+      "tool_call(id: encoded_call_5f_xpYBWUQpJAiOHFnQm4Sk2xaV_0a_fc_5f_07a6ade79ccd1859016a0d3ce994188191b462401ff0ed584a, name: read",
+    );
+    expect(result).toContain(
+      "TOOL_RESULT (call_id: encoded_call_5f_xpYBWUQpJAiOHFnQm4Sk2xaV_0a_fc_5f_07a6ade79ccd1859016a0d3ce994188191b462401ff0ed584a): file contents here",
+    );
+    expect(result).not.toContain("\nfc_07a6ade79ccd1859016a0d3ce994188191b462401ff0ed584a");
+  });
+
   it("handles assistant tool_calls without content", () => {
     const messages = [
       {

@@ -62,6 +62,24 @@ describe("openai-sse", () => {
     expect(toolDelta.tool_calls[0].function.arguments).toBe("{\"path\":\"/tmp/file\"}");
   });
 
+  it("normalizes multiline tool call IDs in SSE tool deltas", () => {
+    const converter = new StreamToSseConverter("test-model", {
+      id: "chunk-id",
+      created: 123,
+    });
+
+    const toolChunk = converter.handleEvent({
+      type: "tool_call",
+      call_id: "call_1\nfc_2",
+      tool_call: {
+        readToolCall: { args: { path: "/tmp/file" } },
+      },
+    });
+
+    const toolDelta = parseChunk(toolChunk[0]).choices[0].delta;
+    expect(toolDelta.tool_calls[0].id).toBe("encoded_call_5f_1_0a_fc_5f_2");
+  });
+
   it("emits thinking deltas from assistant message", () => {
     const converter = new StreamToSseConverter("test-model", {
       id: "chunk-id",

@@ -9,6 +9,7 @@ import {
   type StreamJsonToolCallEvent,
 } from "./types.js";
 import { MixedDeltaTracker } from "./delta-tracker.js";
+import { normalizeToolCallId } from "../proxy/tool-call-id.js";
 
 type OpenAiToolCall = {
   index: number;
@@ -95,7 +96,7 @@ export class StreamToSseConverter {
   }
 
   private toolCallDelta(event: StreamJsonToolCallEvent): OpenAiDelta {
-    const id = event.call_id ?? "unknown";
+    const id = normalizeToolCallId(event.call_id, "unknown");
     const toolName = inferToolName(event) || "tool";
     const toolKey = Object.keys(event.tool_call ?? {})[0];
     const args = toolKey ? event.tool_call[toolKey]?.args : undefined;
