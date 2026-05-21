@@ -22,7 +22,10 @@ export class CliExecutor implements IToolExecutor {
       const stdoutChunks: Buffer[] = [];
       const stderrChunks: Buffer[] = [];
 
-      const exited = new Promise<{ code: number | null }>((resolve) => child.on("close", (code) => resolve({ code })));
+      const exited = new Promise<{ code: number | null }>((resolve, reject) => {
+        child.once("error", reject);
+        child.once("close", (code) => resolve({ code }));
+      });
 
       const stdout = new Promise<string>((resolve) => {
         child.stdout?.on("data", (c) => stdoutChunks.push(Buffer.from(c)));
