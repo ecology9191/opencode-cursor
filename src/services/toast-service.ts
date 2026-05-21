@@ -26,8 +26,8 @@ export interface OpenCodeClientWithTui {
 export class ToastService {
   private client: OpenCodeClientWithTui | null = null;
 
-  setClient(client: OpenCodeClientWithTui): void {
-    this.client = client;
+  setClient(client: OpenCodeClientWithTui | { tui?: { showToast?: unknown } }): void {
+    this.client = client as OpenCodeClientWithTui;
   }
 
   async show(options: ToastOptions): Promise<void> {

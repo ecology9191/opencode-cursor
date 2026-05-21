@@ -613,7 +613,10 @@ export async function findAllowedToolCallsInOutput(
     if (result.terminate) {
       return {
         toolCalls: [],
-        terminationMessage: result.terminate.silent ? null : result.terminate.message,
+        terminationMessage:
+          result.terminate.reason === "loop_guard" && result.terminate.silent
+            ? null
+            : result.terminate.message,
       };
     }
     if (result.intercepted && interceptedToolCall) {
@@ -979,7 +982,10 @@ async function ensureCursorProxyServer(workspaceDirectory: string, toolRouter?: 
                     },
                   });
                   if (result.terminate) {
-                    if (!result.terminate.silent) {
+                    if (
+                      result.terminate.reason !== "loop_guard"
+                      || !result.terminate.silent
+                    ) {
                       emitTerminalAssistantErrorAndTerminate(result.terminate.message);
                     } else {
                       // Silent termination: just end the stream without an error message
@@ -1051,7 +1057,10 @@ async function ensureCursorProxyServer(workspaceDirectory: string, toolRouter?: 
                   },
                 });
                 if (result.terminate) {
-                  if (!result.terminate.silent) {
+                    if (
+                      result.terminate.reason !== "loop_guard"
+                      || !result.terminate.silent
+                    ) {
                     emitTerminalAssistantErrorAndTerminate(result.terminate.message);
                   } else {
                     controller.enqueue(encoder.encode(formatSseDone()));
@@ -1498,7 +1507,10 @@ async function ensureCursorProxyServer(workspaceDirectory: string, toolRouter?: 
                 },
               });
               if (result.terminate) {
-                if (!result.terminate.silent) {
+                    if (
+                      result.terminate.reason !== "loop_guard"
+                      || !result.terminate.silent
+                    ) {
                   emitTerminalAssistantErrorAndTerminate(result.terminate.message);
                 } else {
                   streamTerminated = true;
@@ -2070,7 +2082,7 @@ export const CursorPlugin: Plugin = async ({ $, directory, worktree, client, ser
     return toolEntries;
   }
 
-  const proxyBaseURL = await ensureCursorProxyServer(workspaceDirectory, router);
+  const proxyBaseURL = await ensureCursorProxyServer(workspaceDirectory, router ?? undefined);
   log.debug("Proxy server started", { baseURL: proxyBaseURL });
 
   // Build tool hook entries from local registry
@@ -2096,7 +2108,17 @@ export const CursorPlugin: Plugin = async ({ $, directory, worktree, client, ser
                 url,
                 instructions,
                 method: "auto" as const,
-                callback,
+                callback: async () => {
+                  const result = await callback();
+                  if (result.type === "failed" || !result.key) {
+                    return { type: "failed" as const };
+                  }
+                  return {
+                    type: "success" as const,
+                    key: result.key,
+                    provider: result.provider,
+                  };
+                },
               };
             } catch (error) {
               log.error("OAuth error", { error });

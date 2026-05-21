@@ -38,7 +38,11 @@ async function loadDefaultDeps(): Promise<McpClientManagerDeps> {
         return new StdioClientTransport({
           command: config.command[0],
           args: config.command.slice(1),
-          env: { ...process.env, ...(config.environment ?? {}) },
+          env: Object.fromEntries(
+            Object.entries({ ...process.env, ...(config.environment ?? {}) }).filter(
+              (entry): entry is [string, string] => entry[1] !== undefined,
+            ),
+          ),
           stderr: "pipe",
         });
       }

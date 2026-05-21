@@ -43,7 +43,7 @@ export class OpenCodeToolDiscovery {
     // Try SDK first (tool.list) if available
     if (this.executorPref !== "cli" && this.client?.tool?.list) {
       try {
-        const resp: ToolListResponse = await this.client.tool.list({});
+        const resp = await this.client.tool.list({}) as ToolListResponse & { data?: unknown };
         const rawTools = Array.isArray(resp?.data) ? resp.data : (resp?.data as any)?.tools || [];
         tools = rawTools.map((t: any) => this.normalize(t, "sdk"));
 
