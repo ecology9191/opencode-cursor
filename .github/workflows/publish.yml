@@ -1,16 +1,8 @@
 name: Publish npm Package
 
 on:
-  push:
-    tags:
-      - "v*"
-  workflow_dispatch:
-    inputs:
-      dry_run:
-        description: "Run packaging checks without publishing"
-        required: false
-        default: true
-        type: boolean
+  release:
+    types: [published]
 
 permissions:
   contents: read
@@ -23,41 +15,31 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
       - uses: actions/setup-node@v6
         with:
           node-version: "24"
           registry-url: "https://registry.npmjs.org"
-          package-manager-cache: false
 
-      - name: Validate tag matches package version
-        if: github.event_name == 'push'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: npm ci
+
+      - name: Validate release tag matches package version
         run: |
-          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          TAG_VERSION="${{ github.event.release.tag_name }}"
+          TAG_VERSION="${TAG_VERSION#v}"
           PKG_VERSION="$(node -p "require('./package.json').version")"
           echo "tag=$TAG_VERSION package=$PKG_VERSION"
           if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
-            echo "Tag version and package.json version must match"
+            echo "Release tag and package.json version must match"
             exit 1
           fi
 
-      - run: bun install
-      - run: bun run build
-      - run: bun run test:ci:unit
-      # Integration tests skipped in publish - already validated on push to main
-      - run: npm pack --dry-run
-
-      - name: Verify trusted publishing environment
-        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false)
-        run: |
-          if [ -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ] || [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
-            echo "GitHub OIDC token is not available; npm trusted publishing requires id-token: write"
-            exit 1
-          fi
+      - run: npm run validate
 
       - name: Publish to npm
-        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false)
-        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --provenance
